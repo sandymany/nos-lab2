@@ -20,44 +20,50 @@ char getRandomChar() {
 	int randomIndex = rand() % charRangeSize;
 	char randomChar = charRangeStart + randomIndex;
 	return(randomChar);
-
-	//time_t t;
-	//srand((int) time(&t)%22);
-	//const char charset[] = "1234567890abcdefghijklmnopqrstuvwxyz";
-	//int upper = 30;
-	//int lower = 0;
-	//int rand_num = (rand()%(upper-lower+1))+lower;
-	//return(charset[rand_num]);
 }
 
 int main() {
 		
 		const char *device0_path = "/dev/shofer0";
 		const char *device1_path = "/dev/shofer1";
-		
+		const char *device2_path = "/dev/shofer2";
+		const char *device3_path = "/dev/shofer3";
+		const char *device4_path = "/dev/shofer4";
+		const char *device5_path = "/dev/shofer5";		
 		int fd0 = open(device0_path,O_WRONLY);
 		int fd1 = open(device1_path, O_WRONLY);
+		int fd2 = open(device2_path, O_WRONLY);
+		int fd3 = open(device3_path, O_WRONLY);
+		int fd4 = open(device4_path, O_WRONLY);
+		int fd5 = open(device5_path, O_WRONLY);
 		
-		//const int buffer_size = 1;
-		
-		if(fd0 == -1 || fd1 == -1) {
+		if(fd0 == -1 || fd1 == -1 || fd2 == -1 || fd3 == -1 || fd4 == -1 || fd5 == -1) {
 				perror("Error opening some of the device!");
 				return errno;
 		}
 
-		struct pollfd fds[2];
+		struct pollfd fds[6];
 		fds[0].fd = fd0;
 		fds[1].fd = fd1;
+		fds[2].fd = fd2;
+		fds[3].fd = fd3;
+		fds[4].fd = fd4;
+		fds[5].fd = fd5;
+		
 		fds[0].events = POLLOUT;
 		fds[1].events = POLLOUT;
+		fds[2].events = POLLOUT;
+		fds[3].events = POLLOUT;
+		fds[4].events = POLLOUT;
+		fds[5].events = POLLOUT;
 		
 		while(1) {
-			int poll_result = poll(fds, 2, -1);
+			int poll_result = poll(fds, 6, -1);
 			if(poll_result == -1) {
 				perror("Error in poll");
 				break;
 			}
-			for(int i = 0; i < 2; i++) {
+			for(int i = 0; i < 7; i++) {
 				if(fds[i].revents & POLLOUT) {
 					char buffer[1];
 
@@ -76,12 +82,11 @@ int main() {
 		// close file descriptors:
 		close(fd0);
 		close(fd1);
-		//char buffer[buffer_size];
-		//ssize_t bytes_read;
-		//bytes_read=read(file_descriptor, buffer, sizeof(buffer));
-		//write(STDOUT_FILENO, buffer, bytes_read);
-		
-		//close(file_descriptor);
+		close(fd2);
+		close(fd3);
+		close(fd4);
+		close(fd5);
+
 		return 0;
 		
 }
