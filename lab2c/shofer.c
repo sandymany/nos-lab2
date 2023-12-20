@@ -28,10 +28,22 @@
 
 /* Buffer size */
 static int buffer_size = BUFFER_SIZE;
+static int max_messages;
+static int max_mess_size;
+static int max_threads;
 
 /* Parameter buffer_size can be given at module load time */
 module_param(buffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(buffer_size, "Buffer size in bytes, must be a power of 2");
+
+module_param(max_messages, int, S_IRUGO);
+MODULE_PARM_DESC(max_messages, "Max messages in queue must be defined.");
+
+module_param(max_mess_size, int, S_IRUGO);
+MODULE_PARM_DESC(max_messages, "Max message size must be defined.");
+
+module_param(max_threads, int, S_IRUGO);
+MODULE_PARM_DESC(max_messages, "Max threads in queue must be defined.");
 
 MODULE_AUTHOR(AUTHOR);
 MODULE_LICENSE(LICENSE);
@@ -71,7 +83,10 @@ static int __init shofer_module_init(void)
 	dev_t dev_no = 0;
 
 	printk(KERN_NOTICE "Module 'shofer' started initialization\n");
-
+	printk(KERN_NOTICE "max broj poruka u queueu: %d", max_messages);
+	printk(KERN_NOTICE "max velicina poruke: %d", max_mess_size);
+	printk(KERN_NOTICE "max dretvi: %d", max_threads);
+	
 	/* get device number(s) */
 	retval = alloc_chrdev_region(&dev_no, 0, 1, DRIVER_NAME);
 	if (retval < 0) {
@@ -190,7 +205,17 @@ static void shofer_delete(struct shofer_dev *shofer)
 /* Called when a process calls "open" on this device */
 static int shofer_open(struct inode *inode, struct file *filp)
 {
+	unsigned int flags = filp->f_flags;
 	struct shofer_dev *shofer; /* device information */
+	
+	if((flags & O_ACCMODE) == O_RDONLY) {
+		printk(KERN_INFO "Device opened with read only mode.");
+	} else if((flags & O_ACCMODE) == O_WRONLY) {
+		printk(KERN_INFO "Device opened with write only mode.");
+	} else {
+		printk(KERN_ERR "Device not opened with write or read mode!");
+		return -1;
+	}
 
 	shofer = container_of(inode->i_cdev, struct shofer_dev, cdev);
 	filp->private_data = shofer; /* for other methods */
