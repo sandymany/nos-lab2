@@ -255,7 +255,14 @@ static int shofer_open_read(struct inode *inode, struct file *filp)
 static int shofer_open_write(struct inode *inode, struct file *filp)
 {
 	/* todo (similar to shofer_open_read) */
+	struct shofer_dev *shofer;
 
+	shofer = container_of(inode->i_cdev, struct shofer_dev, cdev);
+	filp->private_data = shofer;
+
+	if ( (filp->f_flags & O_ACCMODE) != O_WRONLY)
+		return -EPERM;
+		
 	return 0;
 }
 
@@ -291,8 +298,28 @@ static ssize_t shofer_write(struct file *filp, const char __user *ubuf,
 	size_t count, loff_t *f_pos)
 {
 	/* todo (similar to read) */
+	ssize_t retval = 0;
+	struct shofer_dev *shofer = filp->private_data;
+	struct buffer *in_buff = shofer->in_buff;
+	struct kfifo *fifo = &in_buff->fifo;
+	unsigned int copied;
 
-	return count;
+	spin_lock(&in_buff->key);
+
+	dump_buffer("in_dev-end:in_buff:", in_buff);
+
+	retval = kfifo_to_user(fifo, (char __user *) ubuf, count, &copied);
+	if (retval)
+		klog(KERN_WARNING, "kfifo_to_user failed");
+	else
+		retval = copied;
+
+	dump_buffer("in_dev-end:in_buff:", in_buff);
+
+	spin_unlock(&in_buff->key);
+	
+
+	return retval;
 }
 
 static long control_ioctl (struct file *filp, unsigned int request, unsigned long arg)
@@ -306,6 +333,8 @@ static long control_ioctl (struct file *filp, unsigned int request, unsigned lon
 	char c;
 	int got;*/
 	struct shofer_ioctl cmd;
+	
+	LOG("Zapocinje prepisivanje!");
 
 	if (_IOC_TYPE(request) != SHOFER_IOCTL_TYPE || _IOC_NR(request) != SHOFER_IOCTL_NR) {
 		klog(KERN_WARNING, "IOC type and/or nr don't match");
@@ -330,7 +359,46 @@ static long control_ioctl (struct file *filp, unsigned int request, unsigned lon
 
 	/* copy cmd.count bytes from in_buff to out_buff */
 	/* todo (similar to timer) */
-
+	LOG("Prepisujem %d bajtova s jedne naprave na drugu!", cmd.count);
+	
+	static const char *shofer_in_filename = "/dev/shofer_in";
+	static const char *shofer_out_filename = "/dev/shofer_out";
+	
+	struct file *source_file, *dest_file;
+	char buffer[buffer_size];
+	ssize_t bytes_read, bytes_written;
+	
+	// open the source device for reading:
+	source_file = filp_open(shofer_in_filename, O_RDONLY, 0);
+	if(IS_ERR(source_file)) {
+		printk(KERN_ERR "Error opening source device: %ld\n", PTR_ERR(source_file));
+		return PTR_ERR(source_file);
+	}
+	// open the destinantion device for writing:
+	dest_file = filp_open(shofer_out_filename, O_WRONLY, 0);
+	if(IS_ERR(dest_file)) {
+		printk(KERN_ERR "Error opening destination device: %ld\n", PTR_ERR(dest_file));
+		filp_close(source_file, NULL);
+		return PTR_ERR(dest_file);
+	}
+	
+	while((bytes_read = kernel_read(source_file, buffer, sizeof(buffer), &source_file->f_pos)) > 0) {
+		// check if there is enough space to write:
+		bytes_written = kernel_write(dest_file, buffer, bytes_read, &dest_file->f_pos);
+		if(bytes_written < 0) {
+			printk(KERN_ERR "Error writing to destination device: %zd\n", bytes_written);
+			break;
+		}
+		// print info about the transfer:
+		printk(KERN_INFO "Transferred %zd bytes from source to destination.", bytes_written);
+	}
+	if(bytes_read < 0) {
+		printk(KERN_ERR "Error reading from source device: %zd\n", bytes_read);
+	}
+	
+	filp_close(source_file, NULL);
+	filp_close(dest_file, NULL);
+	
 	return retval;
 }
 
