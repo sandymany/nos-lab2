@@ -37,3 +37,7 @@ Radnoj napravi `shofer_control` šaljemo naredbu `ioctl()` u kojoj definiramo br
 ## c) Red poruka
 
 U ovom dijelu zadatka bilo je potrebano ostvariti red poruka pomoću naprava.
+
+Ostvareno je:
+- provjera pristupa napravi (read only ili write only)
+- prijenos argumenata pri pokretanju programa
